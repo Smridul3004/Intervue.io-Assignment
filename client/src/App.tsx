@@ -20,7 +20,7 @@ const ProtectedRoute = ({ children, role }: { children: React.ReactNode; role?: 
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   if (role && user?.role !== role) {
@@ -31,17 +31,18 @@ const ProtectedRoute = ({ children, role }: { children: React.ReactNode; role?: 
 };
 
 /**
- * Wrapper that redirects already-authenticated users away from login/register.
+ * Wrapper that redirects already-authenticated users to their dashboard.
  */
 const GuestRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, user, isLoading } = useAuth();
 
   if (isLoading) {
     return <div className="auth-loading">Loading...</div>;
   }
 
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+  if (isAuthenticated && user) {
+    const dashboard = user.role === 'teacher' ? '/teacher' : '/student';
+    return <Navigate to={dashboard} replace />;
   }
 
   return <>{children}</>;
@@ -51,11 +52,11 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Public guest-only routes */}
+      <Route path="/" element={<GuestRoute><HomePage /></GuestRoute>} />
       <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
       <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
 
       {/* Protected routes */}
-      <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       <Route path="/teacher" element={<ProtectedRoute role="teacher"><TeacherPage /></ProtectedRoute>} />
       <Route path="/student" element={<ProtectedRoute role="student"><StudentPage /></ProtectedRoute>} />
 

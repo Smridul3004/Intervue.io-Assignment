@@ -81,6 +81,31 @@ class VoteService {
     }
 
     /**
+     * Remove a student's vote from a poll (used when teacher kicks a student).
+     * Returns updated vote counts, or null if student hadn't voted.
+     */
+    async removeVote(pollId: string, studentId: string): Promise<{
+        removed: boolean;
+        voteCounts: VoteCountsMap;
+        totalVotes: number;
+    }> {
+        const deleted = await Vote.findOneAndDelete({ pollId, studentId });
+
+        // Recount
+        const votes = await Vote.find({ pollId });
+        const voteCounts: VoteCountsMap = {};
+        votes.forEach((v) => {
+            voteCounts[v.optionId] = (voteCounts[v.optionId] || 0) + 1;
+        });
+
+        return {
+            removed: !!deleted,
+            voteCounts,
+            totalVotes: votes.length,
+        };
+    }
+
+    /**
      * Check if a specific student has voted on a specific poll.
      */
     async hasStudentVoted(pollId: string, studentId: string): Promise<{

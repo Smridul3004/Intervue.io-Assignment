@@ -7,7 +7,6 @@ import usePollTimer from '../hooks/usePollTimer';
 import Header from '../components/Header';
 import Timer from '../components/Timer';
 import OptionCard from '../components/OptionCard';
-import ResultsBar from '../components/ResultsBar';
 import StudentNameModal from '../components/StudentNameModal';
 import type {
     PollData,
@@ -19,7 +18,7 @@ import type {
 } from '../types';
 import '../styles/components.css';
 
-type ViewState = 'onboarding' | 'waiting' | 'voting' | 'voted' | 'results';
+type ViewState = 'onboarding' | 'waiting' | 'voting' | 'voted' | 'results' | 'kicked';
 
 const StudentPage = () => {
     const { user, token, logout } = useAuth();
@@ -33,11 +32,16 @@ const StudentPage = () => {
         }
     }, [user, session, createSession]);
 
-    const [view, setView] = useState<ViewState>(session || user ? 'waiting' : 'onboarding');
+    const [view, setView] = useState<ViewState>(() => {
+        // Restore kicked state across navigation (e.g. home → student page)
+        if (sessionStorage.getItem('student_kicked') === 'true') return 'kicked';
+        return session || user ? 'waiting' : 'onboarding';
+    });
     const [poll, setPoll] = useState<PollData | null>(null);
     const [voteCounts, setVoteCounts] = useState<VoteCounts>({});
     const [totalVotes, setTotalVotes] = useState(0);
     const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
+    const [pendingOptionId, setPendingOptionId] = useState<string | null>(null);
     const [studentCount, setStudentCount] = useState(0);
 
     const { timeLeft, totalTime, startTimer, stopTimer } = usePollTimer();
@@ -46,10 +50,15 @@ const StudentPage = () => {
     useEffect(() => {
         if (!socket || !session) return;
 
-        socket.emit('student:join', {
-            sessionId: session.sessionId,
-            name: session.name,
-        });
+        // Don't attempt to rejoin if we were kicked — server will reject anyway
+        // But still register listeners below so we can hear poll:new / student:kicked
+        const isKicked = sessionStorage.getItem('student_kicked') === 'true';
+        if (!isKicked) {
+            socket.emit('student:join', {
+                sessionId: session.sessionId,
+                name: session.name,
+            });
+        }
 
         // Initial state
         const handleState = (data: PollStatePayload) => {
@@ -78,10 +87,13 @@ const StudentPage = () => {
 
         // New poll started
         const handleNew = (data: PollNewPayload) => {
+            // Clear kicked status — teacher started a new round
+            sessionStorage.removeItem('student_kicked');
             setPoll(data.poll);
             setVoteCounts({});
             setTotalVotes(0);
             setSelectedOptionId(null);
+            setPendingOptionId(null);
             setView('voting');
             startTimer(data.remainingTime);
             toast('New question! 📝', { icon: '🔔' });
@@ -123,6 +135,14 @@ const StudentPage = () => {
             toast.error(data.message);
         };
 
+        // Kicked by teacher
+        const handleKicked = () => {
+            sessionStorage.setItem('student_kicked', 'true');
+            setPoll(null);
+            stopTimer();
+            setView('kicked');
+        };
+
         socket.on('poll:state', handleState);
         socket.on('poll:new', handleNew);
         socket.on('poll:vote-accepted', handleVoteAccepted);
@@ -130,6 +150,7 @@ const StudentPage = () => {
         socket.on('poll:results-update', handleResults);
         socket.on('poll:ended', handleEnded);
         socket.on('student:count', handleStudentCount);
+        socket.on('student:kicked', handleKicked);
         socket.on('error', handleError);
 
         return () => {
@@ -140,6 +161,7 @@ const StudentPage = () => {
             socket.off('poll:results-update', handleResults);
             socket.off('poll:ended', handleEnded);
             socket.off('student:count', handleStudentCount);
+            socket.off('student:kicked', handleKicked);
             socket.off('error', handleError);
         };
     }, [socket, session, startTimer, stopTimer]);
@@ -161,18 +183,35 @@ const StudentPage = () => {
         [socket, createSession]
     );
 
-    // Handle vote
-    const handleVote = useCallback(
+    // Handle option selection (select only, don't submit yet)
+    const handleSelectOption = useCallback(
         (optionId: string) => {
-            if (!socket || !poll) return;
-
-            socket.emit('poll:vote', {
-                pollId: poll._id,
-                optionId,
-            });
+            setPendingOptionId(optionId);
         },
-        [socket, poll]
+        []
     );
+
+    // Handle vote submission (after selecting an option)
+    const handleSubmitVote = useCallback(() => {
+        if (!socket || !poll || !pendingOptionId) return;
+        socket.emit('poll:vote', {
+            pollId: poll._id,
+            optionId: pendingOptionId,
+        });
+    }, [socket, poll, pendingOptionId]);
+
+    // Handle returning to waiting room after being kicked
+    const handleGoHome = useCallback(() => {
+        // Clear the kicked flag and reset to waiting state
+        // Student stays on the page and waits for the next poll
+        sessionStorage.removeItem('student_kicked');
+        setPoll(null);
+        setVoteCounts({});
+        setTotalVotes(0);
+        setSelectedOptionId(null);
+        setPendingOptionId(null);
+        setView('waiting');
+    }, []);
 
     return (
         <div className="page">
@@ -191,54 +230,68 @@ const StudentPage = () => {
                 {/* Waiting for poll */}
                 {view === 'waiting' && (
                     <div className="waiting">
-                        <div className="waiting__icon">⏳</div>
+                        <div className="waiting__badge">
+                            <svg className="waiting__badge-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3.5 1.5C3.5 0.671573 4.17157 0 5 0H10C10.8284 0 11.5 0.671573 11.5 1.5V13.5C11.5 14.3284 10.8284 15 10 15H5C4.17157 15 3.5 14.3284 3.5 13.5V1.5Z" fill="white" />
+                                <path d="M0 5.5C0 4.67157 0.671573 4 1.5 4H4V13.5C4 14.3284 3.32843 15 2.5 15H1.5C0.671573 15 0 14.3284 0 13.5V5.5Z" fill="white" opacity="0.7" />
+                                <path d="M11 8.5C11 7.67157 11.6716 7 12.5 7H13.5C14.3284 7 15 7.67157 15 8.5V13.5C15 14.3284 14.3284 15 13.5 15H12.5C11.6716 15 11 14.3284 11 13.5V8.5Z" fill="white" opacity="0.5" />
+                            </svg>
+                            <span className="waiting__badge-text">Intervue Poll</span>
+                        </div>
+                        <div className="waiting__spinner" />
                         <h2 className="waiting__title">
-                            Waiting for question
-                            <span className="waiting__dot-animation" />
+                            Wait for the teacher to ask questions..
                         </h2>
-                        <p className="waiting__subtitle">
-                            The teacher will start a poll shortly. Stay tuned!
-                        </p>
                     </div>
                 )}
 
-                {/* Voting */}
+                {/* Voting — Figma card: dark header + options + submit */}
                 {view === 'voting' && poll && (
-                    <div className="voting">
-                        <div className="voting__card">
-                            <h2 className="voting__question">{poll.question}</h2>
-                            <div className="voting__timer-row">
-                                <Timer timeLeft={timeLeft} totalTime={totalTime} />
-                            </div>
-                            <div className="voting__options">
+                    <div className="student-poll">
+                        <div className="student-poll__meta">
+                            <span className="student-poll__label">Question</span>
+                            <Timer timeLeft={timeLeft} totalTime={totalTime} />
+                        </div>
+                        <div className="student-poll__card">
+                            <div className="student-poll__card-header">{poll.question}</div>
+                            <div className="student-poll__card-body">
                                 {poll.options.map((option, i) => (
                                     <OptionCard
                                         key={option.id}
                                         option={option}
                                         index={i}
-                                        isSelected={false}
+                                        isSelected={option.id === pendingOptionId}
                                         isDisabled={timeLeft <= 0}
                                         showResults={false}
                                         voteCounts={voteCounts}
                                         totalVotes={totalVotes}
-                                        onClick={() => handleVote(option.id)}
+                                        onClick={() => handleSelectOption(option.id)}
                                     />
                                 ))}
                             </div>
                         </div>
+                        <div className="student-poll__footer">
+                            <button
+                                className="student-poll__submit"
+                                onClick={handleSubmitVote}
+                                disabled={!pendingOptionId || timeLeft <= 0}
+                            >
+                                Submit
+                            </button>
+                        </div>
                     </div>
                 )}
 
-                {/* Voted: show live results */}
+                {/* Voted: live results with fill bars */}
                 {view === 'voted' && poll && (
-                    <div className="voting">
-                        <div className="voting__card">
-                            <h2 className="voting__question">{poll.question}</h2>
-                            <div className="voting__timer-row">
-                                <Timer timeLeft={timeLeft} totalTime={totalTime} />
-                            </div>
-                            <div className="voting__submitted">✅ Your vote has been recorded</div>
-                            <div className="voting__options">
+                    <div className="student-poll">
+                        <div className="student-poll__meta">
+                            <span className="student-poll__label">Question</span>
+                            <Timer timeLeft={timeLeft} totalTime={totalTime} />
+                        </div>
+                        <div className="student-poll__card">
+                            <div className="student-poll__card-header">{poll.question}</div>
+                            <div className="student-poll__card-body">
                                 {poll.options.map((option, i) => (
                                     <OptionCard
                                         key={option.id}
@@ -253,29 +306,57 @@ const StudentPage = () => {
                                     />
                                 ))}
                             </div>
-                            <div className="active-poll__total">
-                                {totalVotes} {totalVotes === 1 ? 'vote' : 'votes'} so far
-                            </div>
                         </div>
+                        <p className="student-poll__wait-msg">
+                            Wait for the teacher to ask a new question..
+                        </p>
                     </div>
                 )}
 
                 {/* Results: poll ended */}
                 {view === 'results' && poll && (
-                    <div className="voting">
-                        <div className="voting__card">
-                            <span className="active-poll__status active-poll__status--ended" style={{ display: 'inline-flex', marginBottom: '1rem' }}>
-                                ● Poll Ended
-                            </span>
-                            <h2 className="voting__question">{poll.question}</h2>
-                            <ResultsBar
-                                options={poll.options}
-                                voteCounts={voteCounts}
-                                totalVotes={totalVotes}
-                            />
-                            <div className="active-poll__total">
-                                Final results — {totalVotes} {totalVotes === 1 ? 'vote' : 'votes'}
+                    <div className="student-poll">
+                        <div className="student-poll__meta">
+                            <span className="student-poll__label">Question</span>
+                            <span className="student-poll__ended-tag">● Poll Ended</span>
+                        </div>
+                        <div className="student-poll__card">
+                            <div className="student-poll__card-header">{poll.question}</div>
+                            <div className="student-poll__card-body">
+                                {poll.options.map((option, i) => (
+                                    <OptionCard
+                                        key={option.id}
+                                        option={option}
+                                        index={i}
+                                        isSelected={option.id === selectedOptionId}
+                                        isDisabled={true}
+                                        showResults={true}
+                                        voteCounts={voteCounts}
+                                        totalVotes={totalVotes}
+                                        onClick={() => { }}
+                                    />
+                                ))}
                             </div>
+                        </div>
+                        <p className="student-poll__wait-msg">
+                            Wait for the teacher to ask a new question..
+                        </p>
+                    </div>
+                )}
+
+                {/* Kicked out by teacher */}
+                {view === 'kicked' && (
+                    <div className="kicked">
+                        <div className="kicked__card">
+                            <div className="kicked__icon">🚫</div>
+                            <h2 className="kicked__title">You have been kicked out!</h2>
+                            <p className="kicked__message">
+                                The teacher removed you from the current poll.
+                                You can wait for the next question.
+                            </p>
+                            <button className="kicked__home-btn" onClick={handleGoHome}>
+                                Wait for Next Poll
+                            </button>
                         </div>
                     </div>
                 )}

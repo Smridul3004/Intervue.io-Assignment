@@ -8,6 +8,9 @@ import studentService from '../services/studentService';
 // Store active poll timers (pollId -> timeout handle)
 const pollTimers: Map<string, NodeJS.Timeout> = new Map();
 
+// Track users kicked from the current poll session (cleared on new poll)
+const kickedUsers: Set<string> = new Set();
+
 /** Returns true when MongoDB is connected and ready */
 const isDbReady = () => mongoose.connection.readyState === 1;
 
@@ -147,6 +150,14 @@ const initializeSocket = (io: SocketIOServer): void => {
                 socket.emit('error', { message: 'Only students can access the student view' });
                 return;
             }
+
+            // Reject kicked students immediately
+            if (kickedUsers.has(user.id)) {
+                socket.emit('student:kicked');
+                console.log(`🚫 Rejected kicked student attempt to rejoin: ${user.name} (${user.id})`);
+                return;
+            }
+
             socket.join('students');
             // Store sessionId on the socket for later reference
             (socket as any).sessionId = data.sessionId;
@@ -222,6 +233,9 @@ const initializeSocket = (io: SocketIOServer): void => {
                 const pollId = (poll._id as any).toString();
                 const remainingTime = poll.timeLimit;
 
+                // Clear kicked list — fresh slate for each new poll
+                kickedUsers.clear();
+
                 // Start server-side timer
                 startPollTimer(io, pollId, remainingTime * 1000);
 
@@ -233,6 +247,124 @@ const initializeSocket = (io: SocketIOServer): void => {
                 console.error('Error creating poll:', error);
                 socket.emit('error', {
                     message: error.message || 'Failed to create poll',
+                });
+            }
+        });
+
+        // ─── Get Active Participants (Teacher) ───
+
+        socket.on('teacher:get-participants', async (data: { pollId: string }) => {
+            if (user.role !== 'teacher') {
+                socket.emit('error', { message: 'Only teachers can view participants' });
+                return;
+            }
+            if (!isDbReady()) {
+                socket.emit('teacher:participants', { participants: [] });
+                return;
+            }
+
+            try {
+                // Get all connected student sockets
+                const studentsRoom = io.sockets.adapter.rooms.get('students');
+                const participants: Array<{
+                    odescription: string;
+                    userId: string;
+                    name: string;
+                    hasVoted: boolean;
+                }> = [];
+
+                if (studentsRoom) {
+                    for (const socketId of studentsRoom) {
+                        const studentSocket = io.sockets.sockets.get(socketId);
+                        if (studentSocket) {
+                            const sUser = (studentSocket as any).user;
+                            if (sUser) {
+                                let hasVoted = false;
+                                if (data.pollId) {
+                                    const voteCheck = await voteService.hasStudentVoted(
+                                        data.pollId,
+                                        sUser.id
+                                    );
+                                    hasVoted = voteCheck.hasVoted;
+                                }
+                                participants.push({
+                                    odescription: socketId,
+                                    userId: sUser.id,
+                                    name: sUser.name,
+                                    hasVoted,
+                                });
+                            }
+                        }
+                    }
+                }
+
+                socket.emit('teacher:participants', { participants });
+            } catch (error) {
+                console.error('Error getting participants:', error);
+                socket.emit('teacher:participants', { participants: [] });
+            }
+        });
+
+        // ─── Kick Student (Teacher) ───
+
+        socket.on('teacher:kick', async (data: { userId: string; pollId: string }) => {
+            if (user.role !== 'teacher') {
+                socket.emit('error', { message: 'Only teachers can kick students' });
+                return;
+            }
+            if (!isDbReady()) {
+                socket.emit('error', { message: 'Database not connected.' });
+                return;
+            }
+
+            try {
+                // Find the student's socket(s) and notify/disconnect them
+                const studentsRoom = io.sockets.adapter.rooms.get('students');
+                let kickedName = 'Student';
+
+                if (studentsRoom) {
+                    for (const socketId of studentsRoom) {
+                        const studentSocket = io.sockets.sockets.get(socketId);
+                        if (studentSocket) {
+                            const sUser = (studentSocket as any).user;
+                            if (sUser && sUser.id === data.userId) {
+                                kickedName = sUser.name;
+                                // Add to kicked set so they can't rejoin
+                                kickedUsers.add(data.userId);
+                                // Notify the student they've been kicked
+                                studentSocket.emit('student:kicked');
+                                // Remove from students room
+                                studentSocket.leave('students');
+                            }
+                        }
+                    }
+                }
+
+                // Remove their vote if they had one, and update results
+                if (data.pollId) {
+                    const result = await voteService.removeVote(data.pollId, data.userId);
+
+                    if (result.removed) {
+                        // Broadcast updated results to ALL
+                        io.emit('poll:results-update', {
+                            pollId: data.pollId,
+                            voteCounts: result.voteCounts,
+                            totalVotes: result.totalVotes,
+                        });
+                    }
+                }
+
+                // Notify teacher of success
+                socket.emit('teacher:kick-success', {
+                    userId: data.userId,
+                    name: kickedName,
+                });
+
+                console.log(`🚫 Teacher kicked student: ${kickedName} (${data.userId})`);
+            } catch (error: any) {
+                console.error('Error kicking student:', error);
+                socket.emit('error', {
+                    message: error.message || 'Failed to kick student',
                 });
             }
         });

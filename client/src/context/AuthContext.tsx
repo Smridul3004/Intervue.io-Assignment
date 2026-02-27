@@ -10,7 +10,7 @@ interface AuthContextType {
     token: string | null;
     isAuthenticated: boolean;
     isLoading: boolean;
-    login: (email: string, password: string) => Promise<void>;
+    login: (email: string, password: string) => Promise<AuthUser>;
     register: (name: string, email: string, password: string, role: 'teacher' | 'student') => Promise<void>;
     logout: () => void;
 }
@@ -66,7 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .finally(() => setIsLoading(false));
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const login = useCallback(async (email: string, password: string) => {
+    const login = useCallback(async (email: string, password: string): Promise<AuthUser> => {
         setIsLoading(true);
         try {
             const res = await fetch(`${API_URL}/auth/login`, {
@@ -79,6 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             setUser(json.data.user);
             setToken(json.data.token);
+            return json.data.user as AuthUser;
         } finally {
             setIsLoading(false);
         }
