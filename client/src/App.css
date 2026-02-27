@@ -1,0 +1,21 @@
+/* App-level layout */
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Page layout */
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.page__content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.page__section {
+  margin-bottom: 2rem;
+}

@@ -1,0 +1,88 @@
+/* ==========================================
+   LIVE POLLING SYSTEM — Global Styles
+   ========================================== */
+
+/* --- CSS Variables (Design Tokens) --- */
+:root {
+  /* Primary */
+  --primary: #7B61FF;
+  --primary-hover: #6A4FE8;
+  --primary-light: #EDE9FF;
+
+  /* Neutral */
+  --bg: #F5F6FA;
+  --card: #FFFFFF;
+  --border: #E5E7EB;
+  --text-primary: #1A1A2E;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+
+  /* Status */
+  --success: #10B981;
+  --success-light: #D1FAE5;
+  --error: #EF4444;
+  --error-light: #FEE2E2;
+  --warning: #F59E0B;
+
+  /* Option colors for results chart */
+  --option-0: #7B61FF;
+  --option-1: #FF6B6B;
+  --option-2: #4ECDC4;
+  --option-3: #FFD93D;
+  --option-4: #FF8C42;
+  --option-5: #A8E6CF;
+
+  /* Spacing & Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* --- Reset --- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--text-primary);
+  background-color: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+a {
+  font-weight: 500;
+  color: var(--primary);
+  text-decoration: inherit;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+}
