@@ -1150,6 +1150,16 @@
     opacity: 0.88;
 }
 
+.live-results__waiting-hint {
+    font-family: 'Sora', sans-serif;
+    font-weight: 400;
+    font-size: 15px;
+    color: rgba(0, 0, 0, 0.42);
+    text-align: center;
+    margin: 4px 0 0;
+    letter-spacing: 0.1px;
+}
+
 .live-results__new-btn {
     display: flex;
     flex-direction: row;

@@ -239,7 +239,11 @@ const TeacherPage = () => {
 
                         {/* Active or Ended: Figma-styled results card */}
                         {(view === 'active' || view === 'ended') && poll && (() => {
+                            const hasVotes = totalVotes > 0;
                             const maxVotes = Math.max(...poll.options.map(o => voteCounts[o.id] || 0), 1);
+                            // When active with no votes yet → show clean option pills (same style as student)
+                            // When votes arrive or poll ended → show fill-bar results
+                            const showBars = hasVotes || view === 'ended';
                             return (
                                 <div className="live-results">
                                     {/* Title row above card */}
@@ -272,31 +276,38 @@ const TeacherPage = () => {
                                         {/* Options body */}
                                         <div className="live-results__card-body">
                                             {poll.options.map((option, i) => {
+                                                if (!showBars) {
+                                                    // No votes yet — clean pill style matching student view
+                                                    return (
+                                                        <div key={option.id} className="s-vote-option s-vote-option--disabled">
+                                                            <span className="s-vote-option__index">{i + 1}</span>
+                                                            <span className="s-vote-option__text">{option.text}</span>
+                                                        </div>
+                                                    );
+                                                }
+                                                // Votes in — fill-bar results
                                                 const votes = voteCounts[option.id] || 0;
                                                 const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
-                                                const fillPct = maxVotes > 0 ? (votes / maxVotes) * 100 : 0;
+                                                const fillPct = (votes / maxVotes) * 100;
                                                 const isTop = votes === maxVotes && votes > 0;
                                                 return (
                                                     <div
                                                         key={option.id}
                                                         className={`live-results__option ${isTop ? 'live-results__option--top' : ''}`}
                                                     >
-                                                        {/* Colored fill bar */}
-                                                        <div
-                                                            className="live-results__fill"
-                                                            style={{ width: `${fillPct}%` }}
-                                                        />
-                                                        {/* Index circle */}
+                                                        <div className="live-results__fill" style={{ width: `${fillPct}%` }} />
                                                         <span className="live-results__index">{i + 1}</span>
-                                                        {/* Option text */}
                                                         <span className="live-results__text">{option.text}</span>
-                                                        {/* Percentage */}
                                                         <span className="live-results__pct">{pct}%</span>
                                                     </div>
                                                 );
                                             })}
                                         </div>
                                     </div>
+
+                                    {!showBars && view === 'active' && (
+                                        <p className="live-results__waiting-hint">Waiting for students to vote…</p>
+                                    )}
 
                                     {view === 'ended' && (
                                         <button className="live-results__new-btn" onClick={handleNewPoll}>
