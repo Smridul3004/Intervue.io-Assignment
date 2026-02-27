@@ -50,6 +50,12 @@ const startServer = async (): Promise<void> => {
             console.log(`🚀 Server running on port ${PORT}`);
             console.log(`📡 Socket.io ready`);
             console.log(`🌍 Accepting requests from ${process.env.CLIENT_URL || 'http://localhost:5173'}`);
+        }).on('error', (err: NodeJS.ErrnoException) => {
+            if (err.code === 'EADDRINUSE') {
+                console.error(`❌ Port ${PORT} is already in use. Kill the other process or use a different port.`);
+                process.exit(1);
+            }
+            throw err;
         });
     } catch (error) {
         console.error('Failed to start server:', error);

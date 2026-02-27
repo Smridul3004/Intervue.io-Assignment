@@ -3,6 +3,24 @@
 // Mirror of shared/types.ts
 // ============================================
 
+// ─── Auth Types ───
+
+export interface AuthUser {
+    id: string;
+    name: string;
+    email: string;
+    role: 'teacher' | 'student';
+}
+
+export interface AuthState {
+    user: AuthUser | null;
+    token: string | null;
+    isAuthenticated: boolean;
+    isLoading: boolean;
+}
+
+// ─── Poll Types ───
+
 export interface PollOption {
     id: string;
     text: string;

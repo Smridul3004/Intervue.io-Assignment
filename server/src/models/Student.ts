@@ -36,8 +36,7 @@ const StudentSchema = new Schema<IStudent>(
     }
 );
 
-// Index for quick lookup by sessionId
-StudentSchema.index({ sessionId: 1 });
+// sessionId already has `unique: true` which creates an index — no need for a separate index
 
 const Student = mongoose.model<IStudent>('Student', StudentSchema);
 

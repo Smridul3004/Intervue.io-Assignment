@@ -10,6 +10,8 @@ interface ResultsBarProps {
 }
 
 const ResultsBar = ({ options, voteCounts, totalVotes }: ResultsBarProps) => {
+    if (!options || options.length === 0) return null;
+
     return (
         <div className="results-bar">
             {options.map((option, i) => {

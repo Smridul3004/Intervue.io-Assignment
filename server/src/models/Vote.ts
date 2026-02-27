@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IVote extends Document {
     pollId: mongoose.Types.ObjectId;
-    studentId: string;     // session-based unique ID per tab
+    studentId: string;     // authenticated user ID (from JWT)
     studentName: string;
     optionId: string;      // matches the option.id in the Poll
     createdAt: Date;

@@ -6,9 +6,10 @@ interface HeaderProps {
     isConnected: boolean;
     studentCount?: number;
     showBack?: boolean;
+    onLogout?: () => void;
 }
 
-const Header = ({ title, isConnected, studentCount, showBack }: HeaderProps) => {
+const Header = ({ title, isConnected, studentCount, showBack, onLogout }: HeaderProps) => {
     const navigate = useNavigate();
 
     return (
@@ -31,6 +32,11 @@ const Header = ({ title, isConnected, studentCount, showBack }: HeaderProps) => 
                 <span className={`header__status header__status--${isConnected ? 'connected' : 'disconnected'}`}>
                     {isConnected ? '● Connected' : '○ Disconnected'}
                 </span>
+                {onLogout && (
+                    <button className="header__logout" onClick={onLogout} title="Sign out">
+                        Sign Out
+                    </button>
+                )}
             </div>
         </header>
     );

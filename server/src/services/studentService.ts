@@ -64,7 +64,7 @@ class StudentService {
         const student = await Student.findOneAndUpdate(
             { sessionId },
             { isActive: false, socketId: null },
-            { new: true }
+            { returnDocument: 'after' }
         );
         return student;
     }

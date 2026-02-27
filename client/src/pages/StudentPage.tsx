@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 import useSocket from '../hooks/useSocket';
 import useStudentSession from '../hooks/useStudentSession';
 import usePollTimer from '../hooks/usePollTimer';
@@ -21,10 +22,18 @@ import '../styles/components.css';
 type ViewState = 'onboarding' | 'waiting' | 'voting' | 'voted' | 'results';
 
 const StudentPage = () => {
-    const { socket, isConnected } = useSocket();
+    const { user, token, logout } = useAuth();
+    const { socket, isConnected } = useSocket(token);
     const { session, createSession } = useStudentSession();
 
-    const [view, setView] = useState<ViewState>(session ? 'waiting' : 'onboarding');
+    // Auto-create session from authenticated user if none exists
+    useEffect(() => {
+        if (user && !session) {
+            createSession(user.name);
+        }
+    }, [user, session, createSession]);
+
+    const [view, setView] = useState<ViewState>(session || user ? 'waiting' : 'onboarding');
     const [poll, setPoll] = useState<PollData | null>(null);
     const [voteCounts, setVoteCounts] = useState<VoteCounts>({});
     const [totalVotes, setTotalVotes] = useState(0);
@@ -155,25 +164,24 @@ const StudentPage = () => {
     // Handle vote
     const handleVote = useCallback(
         (optionId: string) => {
-            if (!socket || !session || !poll) return;
+            if (!socket || !poll) return;
 
             socket.emit('poll:vote', {
                 pollId: poll._id,
-                studentId: session.sessionId,
-                studentName: session.name,
                 optionId,
             });
         },
-        [socket, session, poll]
+        [socket, poll]
     );
 
     return (
         <div className="page">
             <Header
-                title={session ? `Hi, ${session.name}!` : 'Student View'}
+                title={`Student: ${user?.name || session?.name || 'View'}`}
                 isConnected={isConnected}
                 studentCount={studentCount}
                 showBack
+                onLogout={logout}
             />
 
             <div className="page__content">

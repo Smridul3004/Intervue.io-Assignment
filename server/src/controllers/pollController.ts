@@ -65,9 +65,16 @@ class PollController {
 
         const history = await pollService.getPollHistory();
 
+        // Flatten { poll, voteCounts, totalVotes } into a single object per item
+        const flatHistory = history.map(({ poll, voteCounts, totalVotes }) => ({
+            ...(typeof poll.toObject === 'function' ? poll.toObject() : poll),
+            voteCounts,
+            totalVotes,
+        }));
+
         res.status(200).json({
             success: true,
-            data: history,
+            data: flatHistory,
         });
     });
 

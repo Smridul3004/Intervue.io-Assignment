@@ -120,7 +120,7 @@ class PollService {
         const poll = await Poll.findByIdAndUpdate(
             pollId,
             { status: 'completed' },
-            { new: true }
+            { returnDocument: 'after' }
         );
         return poll;
     }

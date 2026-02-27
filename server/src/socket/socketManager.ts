@@ -1,5 +1,6 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import mongoose from 'mongoose';
+import authService from '../services/authService';
 import pollService from '../services/pollService';
 import voteService from '../services/voteService';
 import studentService from '../services/studentService';
@@ -78,14 +79,34 @@ const initializeSocket = (io: SocketIOServer): void => {
     // Resume any active poll timers on server start
     resumeActivePolls(io);
 
+    // ─── Socket Authentication Middleware ───
+    io.use((socket, next) => {
+        const token = socket.handshake.auth?.token;
+        if (!token) {
+            return next(new Error('Authentication required'));
+        }
+        try {
+            const decoded = authService.verifyToken(token);
+            (socket as any).user = decoded;
+            next();
+        } catch {
+            next(new Error('Invalid or expired token'));
+        }
+    });
+
     io.on('connection', (socket: Socket) => {
-        console.log(`🔌 Client connected: ${socket.id}`);
+        const user = (socket as any).user;
+        console.log(`🔌 Client connected: ${socket.id} (${user.name}, ${user.role})`);
 
         // ─── Teacher Events ───
 
         socket.on('teacher:join', async () => {
+            if (user.role !== 'teacher') {
+                socket.emit('error', { message: 'Only teachers can access the teacher dashboard' });
+                return;
+            }
             socket.join('teacher');
-            console.log(`👩‍🏫 Teacher joined: ${socket.id}`);
+            console.log(`👩‍🏫 Teacher joined: ${user.name} (${socket.id}`);
 
             if (!isDbReady()) {
                 socket.emit('poll:state', emptyState());
@@ -122,6 +143,10 @@ const initializeSocket = (io: SocketIOServer): void => {
         // ─── Student Events ───
 
         socket.on('student:join', async (data: { sessionId: string; name: string }) => {
+            if (user.role !== 'student') {
+                socket.emit('error', { message: 'Only students can access the student view' });
+                return;
+            }
             socket.join('students');
             // Store sessionId on the socket for later reference
             (socket as any).sessionId = data.sessionId;
@@ -146,7 +171,7 @@ const initializeSocket = (io: SocketIOServer): void => {
                 if (result) {
                     const { hasVoted, selectedOptionId } = await voteService.hasStudentVoted(
                         (result.poll._id as any).toString(),
-                        data.sessionId
+                        user.id  // Use authenticated user ID, not session ID
                     );
 
                     socket.emit('poll:state', {
@@ -183,6 +208,10 @@ const initializeSocket = (io: SocketIOServer): void => {
             options: string[];
             timeLimit?: number;
         }) => {
+            if (user.role !== 'teacher') {
+                socket.emit('error', { message: 'Only teachers can create polls' });
+                return;
+            }
             if (!isDbReady()) {
                 socket.emit('error', { message: 'Database not connected. Cannot create poll.' });
                 return;
@@ -212,17 +241,25 @@ const initializeSocket = (io: SocketIOServer): void => {
 
         socket.on('poll:vote', async (data: {
             pollId: string;
-            studentId: string;
-            studentName: string;
             optionId: string;
         }) => {
+            if (user.role !== 'student') {
+                socket.emit('poll:vote-rejected', { message: 'Only students can vote' });
+                return;
+            }
             if (!isDbReady()) {
                 socket.emit('poll:vote-rejected', { message: 'Database not connected. Cannot vote.' });
                 return;
             }
 
             try {
-                const result = await voteService.submitVote(data);
+                // Use authenticated user identity — prevents re-voting after logout/login
+                const result = await voteService.submitVote({
+                    pollId: data.pollId,
+                    studentId: user.id,
+                    studentName: user.name,
+                    optionId: data.optionId,
+                });
 
                 // Acknowledge the vote to the student
                 socket.emit('poll:vote-accepted', {
@@ -237,7 +274,7 @@ const initializeSocket = (io: SocketIOServer): void => {
                     totalVotes: result.totalVotes,
                 });
 
-                console.log(`🗳️  Vote received: ${data.studentName} → option ${data.optionId}`);
+                console.log(`🗳️  Vote received: ${user.name} (${user.id}) → option ${data.optionId}`);
             } catch (error: any) {
                 console.error('Error submitting vote:', error);
                 socket.emit('poll:vote-rejected', {

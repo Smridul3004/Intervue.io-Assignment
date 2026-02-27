@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 import useSocket from '../hooks/useSocket';
 import usePollTimer from '../hooks/usePollTimer';
 import Header from '../components/Header';
@@ -21,7 +22,8 @@ import '../styles/components.css';
 type ViewState = 'idle' | 'active' | 'ended';
 
 const TeacherPage = () => {
-    const { socket, isConnected } = useSocket();
+    const { user, token, logout } = useAuth();
+    const { socket, isConnected } = useSocket(token);
 
     const [view, setView] = useState<ViewState>('idle');
     const [poll, setPoll] = useState<PollData | null>(null);
@@ -146,10 +148,11 @@ const TeacherPage = () => {
     return (
         <div className="page">
             <Header
-                title="Teacher Dashboard"
+                title={`Teacher: ${user?.name || 'Dashboard'}`}
                 isConnected={isConnected}
                 studentCount={studentCount}
                 showBack
+                onLogout={logout}
             />
             <div className="page__content">
                 {/* Idle: show creation form */}
