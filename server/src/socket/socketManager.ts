@@ -169,6 +169,8 @@ const initializeSocket = (io: SocketIOServer): void => {
             }
 
             try {
+                // Upsert student record — ensures it exists for JWT-auth users
+                await studentService.registerStudent(data.name, data.sessionId);
                 // Update the student's socket ID
                 await studentService.updateSocketId(data.sessionId, socket.id);
 
@@ -248,6 +250,32 @@ const initializeSocket = (io: SocketIOServer): void => {
                 socket.emit('error', {
                     message: error.message || 'Failed to create poll',
                 });
+            }
+        });
+
+        // ─── Get Active Participants (Student — read-only, names only) ───
+
+        socket.on('student:get-participants', async () => {
+            if (user.role !== 'student') return;
+            if (!isDbReady()) {
+                socket.emit('student:participants', { participants: [] });
+                return;
+            }
+            try {
+                const studentsRoom = io.sockets.adapter.rooms.get('students');
+                const participants: Array<{ name: string }> = [];
+                if (studentsRoom) {
+                    for (const socketId of studentsRoom) {
+                        const studentSocket = io.sockets.sockets.get(socketId);
+                        if (studentSocket) {
+                            const sUser = (studentSocket as any).user;
+                            if (sUser) participants.push({ name: sUser.name });
+                        }
+                    }
+                }
+                socket.emit('student:participants', { participants });
+            } catch (error) {
+                socket.emit('student:participants', { participants: [] });
             }
         });
 

@@ -44,6 +44,11 @@ const StudentPage = () => {
     const [pendingOptionId, setPendingOptionId] = useState<string | null>(null);
     const [studentCount, setStudentCount] = useState(0);
 
+    // Popup panel state (chat & participants)
+    const [showPopup, setShowPopup] = useState(false);
+    const [popupTab, setPopupTab] = useState<'chat' | 'participants'>('participants');
+    const [participants, setParticipants] = useState<{ name: string }[]>([]);
+
     const { timeLeft, totalTime, startTimer, stopTimer } = usePollTimer();
 
     // Join as student when socket + session are ready
@@ -143,6 +148,11 @@ const StudentPage = () => {
             setView('kicked');
         };
 
+        // Participants list (student view)
+        const handleStudentParticipants = (data: { participants: { name: string }[] }) => {
+            setParticipants(data.participants);
+        };
+
         socket.on('poll:state', handleState);
         socket.on('poll:new', handleNew);
         socket.on('poll:vote-accepted', handleVoteAccepted);
@@ -151,6 +161,7 @@ const StudentPage = () => {
         socket.on('poll:ended', handleEnded);
         socket.on('student:count', handleStudentCount);
         socket.on('student:kicked', handleKicked);
+        socket.on('student:participants', handleStudentParticipants);
         socket.on('error', handleError);
 
         return () => {
@@ -162,6 +173,7 @@ const StudentPage = () => {
             socket.off('poll:ended', handleEnded);
             socket.off('student:count', handleStudentCount);
             socket.off('student:kicked', handleKicked);
+            socket.off('student:participants', handleStudentParticipants);
             socket.off('error', handleError);
         };
     }, [socket, session, startTimer, stopTimer]);
@@ -199,6 +211,17 @@ const StudentPage = () => {
             optionId: pendingOptionId,
         });
     }, [socket, poll, pendingOptionId]);
+
+    // Toggle popup panel
+    const togglePopup = useCallback(() => {
+        setShowPopup(prev => {
+            const opening = !prev;
+            if (opening && socket) {
+                socket.emit('student:get-participants');
+            }
+            return opening;
+        });
+    }, [socket]);
 
     // Handle returning to waiting room after being kicked
     const handleGoHome = useCallback(() => {
@@ -361,6 +384,69 @@ const StudentPage = () => {
                     </div>
                 )}
             </div>
+
+            {/* Floating Chat/Participants FAB — visible to students (except onboarding) */}
+            {view !== 'onboarding' && (
+                <>
+                    <button className="live-fab" onClick={togglePopup} title="Chat &amp; Participants">
+                        <svg width="39" height="39" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19.5 3C10.387 3 3 9.716 3 18C3 21.643 4.386 24.977 6.69 27.578L3.75 35.25L12.312 32.883C14.536 33.927 17.002 34.5 19.626 34.5C28.739 34.5 36 27.784 36 19.5C36 11.216 28.613 3 19.5 3Z" fill="white" />
+                        </svg>
+                    </button>
+
+                    {showPopup && (
+                        <div className="live-panel">
+                            {/* Tab bar */}
+                            <div className="live-panel__tabs">
+                                <button
+                                    className={`live-panel__tab ${popupTab === 'chat' ? 'live-panel__tab--active' : ''}`}
+                                    onClick={() => setPopupTab('chat')}
+                                >
+                                    Chat
+                                </button>
+                                <button
+                                    className={`live-panel__tab ${popupTab === 'participants' ? 'live-panel__tab--active' : ''}`}
+                                    onClick={() => {
+                                        setPopupTab('participants');
+                                        if (socket) socket.emit('student:get-participants');
+                                    }}
+                                >
+                                    Participants
+                                </button>
+                                <button className="live-panel__close" onClick={() => setShowPopup(false)}>✕</button>
+                            </div>
+
+                            {/* Chat — coming soon */}
+                            {popupTab === 'chat' && (
+                                <div className="live-panel__coming-soon">
+                                    <div className="live-panel__coming-soon-icon">💬</div>
+                                    <p className="live-panel__coming-soon-title">Chat Coming Soon</p>
+                                    <p className="live-panel__coming-soon-sub">Live chat will be available in a future update.</p>
+                                </div>
+                            )}
+
+                            {/* Participants — names only, no kick */}
+                            {popupTab === 'participants' && (
+                                <div className="live-panel__participants">
+                                    <div className="live-panel__participants-header live-panel__participants-header--student">
+                                        <span>Name</span>
+                                    </div>
+                                    <div className="live-panel__participants-list">
+                                        {participants.length === 0 && (
+                                            <p className="live-panel__empty">No other students connected</p>
+                                        )}
+                                        {participants.map((p, i) => (
+                                            <div key={i} className="live-panel__participant-row">
+                                                <span className="live-panel__participant-name">{p.name}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </>
+            )}
         </div>
     );
 };

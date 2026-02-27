@@ -1965,6 +1965,11 @@
     color: #726F6F;
 }
 
+/* Student view: single-column header (no Action column) */
+.live-panel__participants-header--student {
+    justify-content: flex-start;
+}
+
 .live-panel__participants-list {
     flex: 1;
     overflow-y: auto;
