@@ -1,10 +1,24 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
+import mongoose from 'mongoose';
 import pollService from '../services/pollService';
 import voteService from '../services/voteService';
 import studentService from '../services/studentService';
 
 // Store active poll timers (pollId -> timeout handle)
 const pollTimers: Map<string, NodeJS.Timeout> = new Map();
+
+/** Returns true when MongoDB is connected and ready */
+const isDbReady = () => mongoose.connection.readyState === 1;
+
+/** Default empty state sent when DB is not connected */
+const emptyState = (extra: Record<string, unknown> = {}) => ({
+    poll: null,
+    remainingTime: 0,
+    voteCounts: {},
+    totalVotes: 0,
+    studentCount: 0,
+    ...extra,
+});
 
 /**
  * Starts a server-side timer for a poll.
@@ -41,6 +55,10 @@ const startPollTimer = (io: SocketIOServer, pollId: string, remainingMs: number)
  * On server start, check for any active poll and resume its timer.
  */
 const resumeActivePolls = async (io: SocketIOServer): Promise<void> => {
+    if (!isDbReady()) {
+        console.log('⏭️  Skipping poll resume — DB not connected');
+        return;
+    }
     try {
         const result = await pollService.getActivePoll();
         if (result && result.remainingTime > 0) {
@@ -69,6 +87,11 @@ const initializeSocket = (io: SocketIOServer): void => {
             socket.join('teacher');
             console.log(`👩‍🏫 Teacher joined: ${socket.id}`);
 
+            if (!isDbReady()) {
+                socket.emit('poll:state', emptyState());
+                return;
+            }
+
             try {
                 const result = await pollService.getActivePoll();
                 const studentCount = await studentService.getActiveStudentCount();
@@ -92,7 +115,7 @@ const initializeSocket = (io: SocketIOServer): void => {
                 }
             } catch (error) {
                 console.error('Error on teacher:join:', error);
-                socket.emit('error', { message: 'Failed to fetch poll state' });
+                socket.emit('poll:state', emptyState());
             }
         });
 
@@ -102,6 +125,12 @@ const initializeSocket = (io: SocketIOServer): void => {
             socket.join('students');
             // Store sessionId on the socket for later reference
             (socket as any).sessionId = data.sessionId;
+
+            if (!isDbReady()) {
+                socket.emit('poll:state', emptyState({ hasVoted: false }));
+                console.log(`🎓 Student joined (no DB): ${data.name} (${socket.id})`);
+                return;
+            }
 
             try {
                 // Update the student's socket ID
@@ -143,7 +172,7 @@ const initializeSocket = (io: SocketIOServer): void => {
                 console.log(`🎓 Student joined: ${data.name} (${socket.id})`);
             } catch (error) {
                 console.error('Error on student:join:', error);
-                socket.emit('error', { message: 'Failed to fetch poll state' });
+                socket.emit('poll:state', emptyState({ hasVoted: false }));
             }
         });
 
@@ -154,6 +183,11 @@ const initializeSocket = (io: SocketIOServer): void => {
             options: string[];
             timeLimit?: number;
         }) => {
+            if (!isDbReady()) {
+                socket.emit('error', { message: 'Database not connected. Cannot create poll.' });
+                return;
+            }
+
             try {
                 const poll = await pollService.createPoll(data);
                 const pollId = (poll._id as any).toString();
@@ -182,6 +216,11 @@ const initializeSocket = (io: SocketIOServer): void => {
             studentName: string;
             optionId: string;
         }) => {
+            if (!isDbReady()) {
+                socket.emit('poll:vote-rejected', { message: 'Database not connected. Cannot vote.' });
+                return;
+            }
+
             try {
                 const result = await voteService.submitVote(data);
 
@@ -211,7 +250,7 @@ const initializeSocket = (io: SocketIOServer): void => {
 
         socket.on('disconnect', async () => {
             const sessionId = (socket as any).sessionId;
-            if (sessionId) {
+            if (sessionId && isDbReady()) {
                 try {
                     await studentService.updateSocketId(sessionId, null);
                     const studentCount = await studentService.getActiveStudentCount();

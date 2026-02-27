@@ -1,13 +1,18 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import studentService from '../services/studentService';
 import catchAsync from '../utils/catchAsync';
 
 class StudentController {
     /**
      * POST /api/students/register
-     * Register a student with a name and session ID.
      */
     register = catchAsync(async (req: Request, res: Response) => {
+        if (mongoose.connection.readyState !== 1) {
+            res.status(503).json({ success: false, message: 'Database not connected' });
+            return;
+        }
+
         const { name, sessionId } = req.body;
         const student = await studentService.registerStudent(name, sessionId);
 

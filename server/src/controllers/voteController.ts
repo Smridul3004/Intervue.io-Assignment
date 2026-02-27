@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import voteService from '../services/voteService';
 import catchAsync from '../utils/catchAsync';
 
@@ -8,6 +9,11 @@ class VoteController {
      * Submit a vote for a poll.
      */
     submitVote = catchAsync(async (req: Request, res: Response) => {
+        if (mongoose.connection.readyState !== 1) {
+            res.status(503).json({ success: false, message: 'Database not connected' });
+            return;
+        }
+
         const { id: pollId } = req.params;
         const { studentId, studentName, optionId } = req.body;
 

@@ -15,7 +15,8 @@ const useSocket = () => {
 
     useEffect(() => {
         const newSocket = io(SOCKET_URL, {
-            transports: ['websocket', 'polling'],
+            transports: ['polling', 'websocket'],
+            upgrade: true,
             reconnection: true,
             reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,
