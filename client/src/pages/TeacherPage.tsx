@@ -208,7 +208,7 @@ const TeacherPage = () => {
             <div className="teacher-page__header">
                 <h1 className="teacher-page__title">Let's Get Started</h1>
                 <p className="teacher-page__subtitle">
-                    you'll have the ability to create and manage polls, ask questions, and monitor your students' responses in real-time.
+                    you'll have the ability to <strong>create and manage polls</strong>, ask questions, and <strong>monitor your students' responses</strong> in real-time.
                 </p>
             </div>
 

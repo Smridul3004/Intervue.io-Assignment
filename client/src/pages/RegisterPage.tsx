@@ -38,10 +38,7 @@ const RegisterPage = () => {
         }
     };
 
-    const roleDescription =
-        role === 'student'
-            ? "If you're a student, you'll be able to submit your answers, participate in live polls, and see how your responses compare with your classmates"
-            : "If you're a teacher, you'll be able to create polls, manage questions, and view live results from your students";
+    const isStudent = role === 'student';
 
     return (
         <div className="auth-page">
@@ -61,7 +58,13 @@ const RegisterPage = () => {
             </div>
 
             {/* Description */}
-            <p className="auth-description">{roleDescription}</p>
+            <p className="auth-description">
+                {isStudent ? (
+                    <>If you're a <strong>student</strong>, you'll be able to <strong>submit your answers</strong>, participate in <strong>live polls</strong>, and see how your responses compare with your classmates</>
+                ) : (
+                    <>If you're a <strong>teacher</strong>, you'll be able to <strong>create polls</strong>, <strong>manage questions</strong>, and <strong>view live results</strong> from your students</>
+                )}
+            </p>
 
             {/* Form */}
             <form className="auth-form" onSubmit={handleSubmit}>

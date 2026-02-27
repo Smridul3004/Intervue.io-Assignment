@@ -46,7 +46,7 @@ const LoginPage = () => {
 
             {/* Description */}
             <p className="auth-description">
-                Sign in to the Live Polling System to participate in polls or manage your sessions
+                Sign in to the <strong>Live Polling System</strong> to participate in polls or <strong>manage your sessions</strong>
             </p>
 
             {/* Form */}

@@ -81,6 +81,11 @@ button {
   cursor: pointer;
 }
 
+strong {
+  font-weight: 700;
+  color: #7565D9;
+}
+
 input,
 textarea,
 select {

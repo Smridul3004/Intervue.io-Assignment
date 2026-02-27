@@ -271,7 +271,7 @@ const StudentPage = () => {
                         </div>
                         <div className="waiting__spinner" />
                         <h2 className="waiting__title">
-                            Wait for the teacher to ask questions..
+                            Wait for the teacher to <strong>ask questions</strong>..
                         </h2>
                     </div>
                 )}

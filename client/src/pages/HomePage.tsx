@@ -28,9 +28,9 @@ const HomePage = () => {
 
             {/* Header Section */}
             <div className="home__header">
-                <h1 className="home__title">Welcome to the Live Polling System</h1>
+                <h1 className="home__title">Welcome to the <strong>Live Polling System</strong></h1>
                 <p className="home__subtitle">
-                    Please select the role that best describes you to begin using the live polling system
+                    Please <strong>select the role</strong> that best describes you to begin using the live polling system
                 </p>
             </div>
 
@@ -41,9 +41,9 @@ const HomePage = () => {
                     onClick={() => setSelectedRole('student')}
                 >
                     <div className="home__card-body">
-                        <div className="home__card-title">I'm a Student</div>
+                        <div className="home__card-title">I'm a <strong>Student</strong></div>
                         <div className="home__card-desc">
-                            Submit answers and view live poll results in real-time.
+                            Submit answers and view <strong>live poll results</strong> in real-time.
                         </div>
                     </div>
                 </div>
@@ -53,9 +53,9 @@ const HomePage = () => {
                     onClick={() => setSelectedRole('teacher')}
                 >
                     <div className="home__card-body">
-                        <div className="home__card-title">I'm a Teacher</div>
+                        <div className="home__card-title">I'm a <strong>Teacher</strong></div>
                         <div className="home__card-desc">
-                            Create polls, manage questions and view live results.
+                            <strong>Create polls</strong>, manage questions and view live results.
                         </div>
                     </div>
                 </div>
