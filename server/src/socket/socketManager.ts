@@ -357,15 +357,26 @@ const initializeSocket = (io: SocketIOServer): void => {
                             const sUser = (studentSocket as any).user;
                             if (sUser && sUser.id === data.userId) {
                                 kickedName = sUser.name;
-                                // Add to kicked set so they can't rejoin
+                                // Add to kicked set so they can't rejoin this poll
                                 kickedUsers.add(data.userId);
                                 // Notify the student they've been kicked
                                 studentSocket.emit('student:kicked');
                                 // Remove from students room
                                 studentSocket.leave('students');
+                                // Clear their DB record so count drops immediately
+                                const sessionId = (studentSocket as any).sessionId;
+                                if (sessionId && isDbReady()) {
+                                    await studentService.updateSocketId(sessionId, null);
+                                }
                             }
                         }
                     }
+                }
+
+                // Broadcast updated student count after kick
+                if (isDbReady()) {
+                    const updatedCount = await studentService.getActiveStudentCount();
+                    io.emit('student:count', { count: updatedCount });
                 }
 
                 // Remove their vote if they had one, and update results

@@ -102,6 +102,14 @@ const StudentPage = () => {
             setView('voting');
             startTimer(data.remainingTime);
             toast('New question! 📝', { icon: '🔔' });
+            // Always re-join to ensure student is back in the students room
+            // (handles case where they were kicked from previous poll)
+            if (session) {
+                socket.emit('student:join', {
+                    sessionId: session.sessionId,
+                    name: session.name,
+                });
+            }
         };
 
         // Vote accepted
@@ -371,11 +379,9 @@ const StudentPage = () => {
                 {view === 'kicked' && (
                     <div className="kicked">
                         <div className="kicked__card">
-                            <div className="kicked__icon">🚫</div>
-                            <h2 className="kicked__title">You have been kicked out!</h2>
+                            <h2 className="kicked__title">You've been Kicked out !</h2>
                             <p className="kicked__message">
-                                The teacher removed you from the current poll.
-                                You can wait for the next question.
+                                Looks like the teacher had removed you from the poll system. Please Try again sometime.
                             </p>
                             <button className="kicked__home-btn" onClick={handleGoHome}>
                                 Wait for Next Poll

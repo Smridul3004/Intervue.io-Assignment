@@ -1740,55 +1740,75 @@
 }
 
 /* --- Kicked Out Screen --- */
+/* --- Kicked Screen (Figma Desktop 669) --- */
 .kicked {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 60vh;
+    width: 100%;
+    min-height: 70vh;
+    gap: 69px;
 }
 
 .kicked__card {
-    background: var(--card);
-    border-radius: var(--radius-lg);
-    padding: 3rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    width: min(737px, 90vw);
     text-align: center;
-    max-width: 480px;
-    box-shadow: var(--shadow-lg);
 }
 
 .kicked__icon {
-    font-size: 3.5rem;
-    margin-bottom: 1rem;
+    display: none;
 }
 
 .kicked__title {
-    font-size: 1.5rem;
-    font-weight: 800;
-    color: var(--error);
-    margin-bottom: 0.75rem;
+    width: 100%;
+    font-family: 'Sora', sans-serif;
+    font-style: normal;
+    font-weight: 400;
+    font-size: 40px;
+    line-height: 50px;
+    text-align: center;
+    color: #000000;
+    margin: 0;
 }
 
 .kicked__message {
-    font-size: 0.95rem;
-    color: var(--text-secondary);
-    line-height: 1.65;
-    margin-bottom: 2rem;
+    width: 100%;
+    font-family: 'Sora', sans-serif;
+    font-style: normal;
+    font-weight: 400;
+    font-size: 19px;
+    line-height: 24px;
+    text-align: center;
+    color: rgba(0, 0, 0, 0.5);
+    margin: 0 0 21px;
 }
 
 .kicked__home-btn {
-    padding: 0.8rem 2rem;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    padding: 17px 70px;
+    height: 57px;
     border: none;
     border-radius: 34px;
     background: linear-gradient(99.18deg, #8F64E1 -46.89%, #1D68BD 223.45%);
-    color: #fff;
-    font-size: 1rem;
+    font-family: 'Sora', sans-serif;
     font-weight: 600;
+    font-size: 18px;
+    line-height: 23px;
+    color: #FFFFFF;
     cursor: pointer;
-    transition: transform 0.2s ease;
+    transition: opacity 0.2s;
 }
 
 .kicked__home-btn:hover {
-    transform: scale(1.04);
+    opacity: 0.88;
 }
 
 @keyframes slideUpPanel {
