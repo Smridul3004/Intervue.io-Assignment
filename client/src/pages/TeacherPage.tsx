@@ -28,7 +28,7 @@ interface Participant {
 }
 
 const TeacherPage = () => {
-    const { user, token, logout } = useAuth();
+    const { token, logout } = useAuth();
     const { socket, isConnected } = useSocket(token);
 
     const [view, setView] = useState<ViewState>('idle');
