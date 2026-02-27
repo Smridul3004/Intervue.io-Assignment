@@ -14,7 +14,7 @@ class VoteController {
             return;
         }
 
-        const { id: pollId } = req.params;
+        const pollId = req.params.id as string;
         const { studentId, studentName, optionId } = req.body;
 
         const result = await voteService.submitVote({
